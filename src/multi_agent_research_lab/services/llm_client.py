@@ -3,9 +3,12 @@
 Production note: agents should depend on this interface instead of importing an SDK directly.
 """
 
+import json
 from dataclasses import dataclass
 from importlib import import_module
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -88,5 +91,77 @@ class LLMClient:
             content=content,
             input_tokens=len(system_prompt.split()) + len(words),
             output_tokens=len(content.split()),
+            cost_usd=0.0,
+        )
+
+
+class OllamaLLMClient:
+    """Local Ollama client that never downloads or mutates installed models."""
+
+    def __init__(
+        self,
+        model: str,
+        base_url: str = "http://127.0.0.1:11434",
+        timeout_seconds: int = 180,
+    ) -> None:
+        self.model = model
+        self.base_url = base_url.rstrip("/")
+        self.timeout_seconds = timeout_seconds
+        if model not in self.installed_models():
+            raise AgentExecutionError(
+                f"Ollama model {model!r} is not installed. "
+                "This project will not download models automatically."
+            )
+
+    def installed_models(self) -> list[str]:
+        """Return model names already available from the local Ollama daemon."""
+
+        try:
+            with urlopen(f"{self.base_url}/api/tags", timeout=5) as response:
+                data = json.loads(response.read().decode("utf-8"))
+        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+            raise AgentExecutionError(f"Cannot reach local Ollama: {exc}") from exc
+        return [str(item["name"]) for item in data.get("models", [])]
+
+    def complete(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        *,
+        max_tokens: int = 512,
+        temperature: float = 0.2,
+    ) -> LLMResponse:
+        """Run a non-streaming local chat completion."""
+
+        payload = json.dumps(
+            {
+                "model": self.model,
+                "stream": False,
+                "think": False,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                },
+            }
+        ).encode("utf-8")
+        request = Request(
+            f"{self.base_url}/api/chat",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=self.timeout_seconds) as response:
+                data = json.loads(response.read().decode("utf-8"))
+        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+            raise AgentExecutionError(f"Ollama completion failed: {exc}") from exc
+        return LLMResponse(
+            content=str(data.get("message", {}).get("content", "")).strip(),
+            input_tokens=int(data.get("prompt_eval_count", 0)),
+            output_tokens=int(data.get("eval_count", 0)),
             cost_usd=0.0,
         )

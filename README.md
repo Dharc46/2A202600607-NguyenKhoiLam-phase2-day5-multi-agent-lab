@@ -138,6 +138,22 @@ python -m multi_agent_research_lab.cli benchmark \
   --query "Compare single-agent and multi-agent research workflows"
 ```
 
+## Local Ollama showcase
+
+The interactive HTML showcase implements Prompt 3 from `question.md`: a controlled
+single-call versus multi-agent experiment. It uses the already-installed
+`qwen3:1.7b` model and never downloads models.
+
+```bash
+uv run python showcase_server.py
+```
+
+Open `http://127.0.0.1:8080`. To use another model that is already installed:
+
+```bash
+uv run python showcase_server.py --model your-existing-model:tag
+```
+
 ## Deliverables
 
 Học viên nộp:
