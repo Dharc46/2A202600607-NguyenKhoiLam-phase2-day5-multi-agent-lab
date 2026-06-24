@@ -1,38 +1,47 @@
-# Design Template
+# System Design
 
 ## Problem
 
-TODO(student): Viết task cụ thể hệ thống cần xử lý.
+The system answers open-ended research questions by collecting evidence, comparing claims,
+and producing a cited answer for technical learners.
 
 ## Why multi-agent?
 
-TODO(student): Giải thích vì sao single-agent chưa đủ.
+The baseline is useful for simple questions, but a multi-agent workflow makes evidence
+collection, analysis, synthesis, retries, and traces independently observable and testable.
 
 ## Agent roles
 
 | Agent | Responsibility | Input | Output | Failure mode |
 |---|---|---|---|---|
-| Supervisor | TODO | TODO | TODO | TODO |
-| Researcher | TODO | TODO | TODO | TODO |
-| Analyst | TODO | TODO | TODO | TODO |
-| Writer | TODO | TODO | TODO | TODO |
+| Supervisor | Route and stop safely | Shared state | Next route | Loop or premature stop |
+| Researcher | Retrieve and normalize evidence | Query | Sources and notes | Empty/weak sources |
+| Analyst | Compare claims and flag gaps | Research notes | Analysis notes | Unsupported inference |
+| Writer | Produce audience-aware cited answer | Evidence and analysis | Final answer | Invented citations |
+| Critic | Validate citations and workflow health | Final state | Findings | Missed semantic errors |
 
 ## Shared state
 
-TODO(student): Liệt kê fields và lý do cần field đó.
+`ResearchState` stores the request, iteration and route history, normalized sources,
+research/analysis/writer outputs, critic findings, token and cost usage, trace events, and
+errors. These fields preserve every handoff and make failures reproducible.
 
 ## Routing policy
 
-TODO(student): Vẽ hoặc mô tả graph.
+`START -> Supervisor -> Researcher -> Supervisor -> Analyst -> Supervisor -> Writer ->
+Critic -> END`. The supervisor selects the first missing artifact. Iteration and recursion
+limits prevent loops.
 
 ## Guardrails
 
-- Max iterations:
-- Timeout:
-- Retry:
-- Fallback:
-- Validation:
+- Max iterations: 6 by default, configurable with `MAX_ITERATIONS`.
+- Timeout: 60 seconds by default for provider calls and fallback workflow execution.
+- Retry: provider calls use exponential retry; fallback workers retry twice.
+- Fallback: local search and deterministic completion allow offline execution.
+- Validation: Pydantic validates state and the critic checks citation references.
 
 ## Benchmark plan
 
-TODO(student): Liệt kê query, metric, expected outcome.
+Run the three queries in `configs/lab_default.yaml`. Compare latency, estimated cost,
+quality proxy, citation coverage, failure rate, and token use. Multi-agent execution is
+expected to cost more and run slower, while improving traceability and usually grounding.

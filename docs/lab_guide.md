@@ -1,77 +1,43 @@
 # Lab Guide: Multi-Agent Research System
 
-## Scenario
+## Implemented system
 
-Bạn cần xây dựng một research assistant có thể nhận câu hỏi dài, tìm thông tin, phân tích và viết câu trả lời cuối cùng. Lab yêu cầu so sánh hai cách làm:
+The repository compares:
 
-1. **Single-agent baseline**: một agent làm toàn bộ.
-2. **Multi-agent workflow**: Supervisor điều phối Researcher, Analyst, Writer.
+1. A single-agent baseline that retrieves evidence and performs one synthesis call.
+2. A multi-agent workflow with Supervisor, Researcher, Analyst, Writer, and Critic stages.
 
-## Quy tắc quan trọng
+OpenAI and Tavily are used when their API keys are configured. Deterministic local
+providers keep development and tests functional without network access.
 
-- Không thêm agent nếu không có lý do rõ ràng.
-- Mỗi agent phải có responsibility riêng.
-- Shared state phải đủ rõ để debug.
-- Phải có trace hoặc log cho từng bước.
-- Phải benchmark, không chỉ nhìn output bằng cảm tính.
+## Workflow
 
-## Milestone 1: Baseline
+The supervisor routes to the first missing artifact:
 
-File gợi ý:
+`researcher -> analyst -> writer -> critic -> done`
 
-- `src/multi_agent_research_lab/cli.py`
-- `src/multi_agent_research_lab/services/llm_client.py`
+Shared Pydantic state records sources, notes, output, usage, errors, routes, and trace
+events. Maximum iterations, timeouts, retries, fallbacks, and citation validation constrain
+failure behavior.
 
-TODO(student): thay baseline placeholder bằng một call LLM thật.
+## Running
 
-## Milestone 2: Supervisor
+```bash
+python -m multi_agent_research_lab.cli baseline --query "Explain GraphRAG"
+python -m multi_agent_research_lab.cli multi-agent --query "Explain GraphRAG"
+python -m multi_agent_research_lab.cli benchmark --query "Explain GraphRAG"
+```
 
-File gợi ý:
+The benchmark report is written under `reports/`; workflow traces are appended to
+`reports/traces.jsonl`.
 
-- `src/multi_agent_research_lab/agents/supervisor.py`
-- `src/multi_agent_research_lab/graph/workflow.py`
+## Evaluation
 
-TODO(student): implement routing policy.
-
-Gợi ý câu hỏi thiết kế:
-
-- Khi nào gọi Researcher?
-- Khi nào gọi Analyst?
-- Khi nào gọi Writer?
-- Khi nào stop?
-- Nếu agent fail thì retry hay fallback?
-
-## Milestone 3: Worker agents
-
-File gợi ý:
-
-- `agents/researcher.py`
-- `agents/analyst.py`
-- `agents/writer.py`
-
-TODO(student): implement từng worker.
-
-## Milestone 4: Trace và benchmark
-
-File gợi ý:
-
-- `observability/tracing.py`
-- `evaluation/benchmark.py`
-- `evaluation/report.py`
-
-Benchmark tối thiểu:
-
-| Metric | Cách đo gợi ý |
-|---|---|
-| Latency | wall-clock time |
-| Cost | token usage hoặc provider usage |
-| Quality | rubric 0-10 do peer review |
-| Citation coverage | số claims có source / tổng claims chính |
-| Failure rate | số query fail / tổng query |
+Compare latency, estimated cost, token use, deterministic quality proxy, citation coverage,
+and error rate. Apply `docs/peer_review_rubric.md` for final human quality scoring.
 
 ## Exit ticket
 
-Mỗi nhóm trả lời 2 câu:
-
-1. Case nào nên dùng multi-agent? Vì sao?
-2. Case nào không nên dùng multi-agent? Vì sao?
+Use multi-agent orchestration when the task benefits from specialized stages, independent
+validation, or detailed observability. Prefer a single agent for simple, low-risk tasks
+where orchestration latency and cost exceed the likely quality gain.

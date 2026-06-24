@@ -5,10 +5,6 @@ class LabError(Exception):
     """Base error for the lab package."""
 
 
-class StudentTodoError(LabError):
-    """Raised where learners are expected to implement core logic."""
-
-
 class AgentExecutionError(LabError):
     """Raised when an agent fails after retries/fallbacks."""
 

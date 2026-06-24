@@ -9,5 +9,7 @@ dist/
 build/
 *.egg-info/
 reports/*.json
+reports/*.jsonl
 reports/*.md
 !.gitkeep
+!reports/benchmark_report.md
